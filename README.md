@@ -1,137 +1,42 @@
-OVERVIEW 
-		This script connects to a Google Sheet, retrieves time series data from a Google Sheet, forecasts future values using a Multi-Layer Perceptron (MLP), plots the results, and stores the forecasted data in a new Google Sheet.
+Project Description: Time Series Forecasting using Random Forest and Google Sheets Integration
+Project Overview
+This project aims to forecast time series data for multiple environmental or sensor-related parameters, leveraging the Random Forest algorithm for accurate predictions. The historical data is retrieved from a Google Sheet, processed, and forecasted values are stored back in a new Google Sheet. The system provides visualization to demonstrate both the original and forecasted values using Matplotlib.
 
-	PREREQUISITES 
-Python 3.x
-Google Sheets API credentials (JSON key file)
- Required Python libraries: gspread, oauth2client, numpy, matplotlib, pandas, sklearn
+Key Features
+Data Retrieval from Google Sheets: The project integrates with Google Sheets API to fetch historical data and store forecasted results in Google Sheets.
+Random Forest-based Forecasting: A Random Forest Regressor is trained using a sliding window approach to generate accurate time series predictions.
+Visual Representation: Dynamic plots are generated to visualize both the historical and forecasted data.
+Scalable Forecasting: The system is capable of forecasting multiple parameters simultaneously using a customizable number of past data points and forecast steps.
+Automated Data Update: The forecasted data is seamlessly stored in a new Google Sheet using Google Sheets API.
+Technologies Used
+Google Sheets API: For reading historical data and writing forecasted data to Google Sheets.
+Random Forest Algorithm: For performing time series forecasting.
+Matplotlib: For dynamic visualization of original and forecasted data.
+NumPy and Pandas: For data manipulation and preprocessing.
+Scikit-learn: Used for the Random Forest implementation and data standardization.
+Workflow
+Google Sheets Integration:
 
-INSTALLATION 
-	Install the required libraries using pip
+The project accesses the Google Sheet containing historical data using OAuth2 credentials and the gspread library.
+Data is read and converted into a pandas DataFrame for easier manipulation.
+Data Preprocessing:
 
-COMMAND:- PS C:\Users\prady\Desktop\mlp> pip install gspread oauth2client numpy matplotlib pandas scikit-learn
+For each parameter (e.g., Temperature, pH, etc.), the last 100 data points are taken as input.
+The data is preprocessed using a sliding window approach, where each window consists of 10 previous values to predict the next value.
+Forecasting with Random Forest:
 
-SCRIPT BREAKDOWN
-Import Libraries
-		These mentioned libraries are essential for accessing Google Sheets, manipulating data, creating plots, and performing machine learning tasks.
-CODE:-
-	import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from sklearn.neural_network import MLPRegressor
-from sklearn.preprocessing import StandardScaler
-Google Sheets Authentication
-This block sets up the OAuth2 credentials and authorises access to Google Sheets.		
-CODE:-
-	# Define the scope and credentials
-scope=["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
-creds=ServiceAccountCredentials.from_json_keyfile_name(r"C:\Users\prady\Downloads\mlp-forecasting-project-1f2f855b3108.json", scope)
-client = gspread.authorize(creds)
-Open Google Sheet and Retrieve Data
-		This block opens the specified Google Sheet, retrieves all records, converts them into a pandas DataFrame, and selects the last 100 data points for analysis.
-CODE:-
-	# Open the Google Sheet by URL
-sheet_url = "https://docs.google.com/spreadsheets/d/1mLaEQiBuDV3A1on--e4O1HTrHu-Cp-n5QZOuUBy3Xcs/edit?usp=sharing"
-sheet = client.open_by_url(sheet_url).sheet1
-# Get all records from the sheet
-data = sheet.get_all_records()
-# Convert the data to a pandas DataFrame
-df = pd.DataFrame(data)
-# Take the last 100 data points
-df = df.tail(100)
-Define Parameters to Forecast
-		Extracts the column names (excluding the first column) which represent the parameters to be forecasted.
-CODE:-
-	# Define the parameters to forecast
-parameters = df.columns[1:]  # Assumes the first column is YY-MM-DD//H-M-S
+A Random Forest Regressor is trained on the prepared data, and forecasts are generated for the next 50 time points.
+Standardization is applied to ensure that the model training is not affected by scale differences.
+Visualization:
 
-Data Preparation Function
-		Prepares the data for training by creating time indices as features and converting the parameter values to float.
-CODE:-
-def prepare_data(df, parameter):
-   	 X = np.arange(len(df)).reshape(-1, 1) # Time index as feature
-    	y=df[parameter].astype(float).values #Convert to float explicitly
-    	return X, y
+The original and forecasted values are plotted in real-time using Matplotlib to demonstrate the gradual generation of forecasted values.
+The plots update dynamically as the model forecasts new values.
+Storing Results in Google Sheets:
 
-Forecasting Function Using MLP
-		This function trains an MLP using a sliding window approach, standardise the data, fits the MLP, and generates future forecasts.
-CODE:-
-	def forecast_values_mlp(X, y, num_forecasts, window_size):
-   		 # Create the features for the MLP using a sliding window approach
-   		 X_train = np.array([y[i:i+window_size] for i in range(len(y)-window_size)])
-   		 y_train = y[window_size:]
-  		  # Standardise the data
-    		scaler_X = StandardScaler()
-    		scaler_y = StandardScaler()
-    
-  		 X_train_scaled = scaler_X.fit_transform(X_train)
-   		 y_train_scaled = scaler_y.fit_transform(y_train.reshape(-1, 1)).ravel()
-    
-    		# Train the MLP model
-mlp=MLPRegressor(hidden_layer_sizes=(100,), activation='relu', solver='adam', max_iter=1000)
-    		mlp.fit(X_train_scaled, y_train_scaled)
-   		 # Generate forecasts
-   		 forecasts = []
-    		last_window = y[-window_size:]
-   		 for _ in range(num_forecasts):
-       		 last_window_scaled = scaler_X.transform([last_window])
-        		next_forecast_scaled = mlp.predict(last_window_scaled)
-next_forecast = scaler_y.inverse_transform(next_forecast_scaled.reshape(-1, 1)).ravel()[0]
-       		 forecasts.append(next_forecast)
-       		 last_window = np.append(last_window[1:], next_forecast)
-   	 return np.array(forecasts)
+Once the forecasts are generated, they are written back to a new Google Sheet where each parameter’s forecasted values are stored.
+The system ensures that the new sheet has enough rows and avoids overwriting existing data by using append_rows().
+Code Summary
+The code first defines credentials for accessing Google Sheets and fetches the necessary data. It processes the data for each parameter by creating features for the Random Forest model using a sliding window approach. The forecasts are generated dynamically and visualized using Matplotlib. Finally, the forecasted data is stored in the new Google Sheet with a unique timestamp for each forecast.
 
-Forecasting Parameters
-	Sets the number of future values to forecast and the window size for the sliding window approach.
-CODE:-
-	num_forecasts = 150
-window_size=10 # Number of previous values to use for forecasting
-
-Open New Google Sheet to Store Forecasted Data
-		This block opens another Google Sheet to store the forecasted data and prepares a dictionary to hold the forecasted values along with their corresponding time indices.
-CODE:-
-	# Open the new Google Sheet to store forecasted data
-new_sheet_url = "https://docs.google.com/spreadsheets/d/1FxNXwMxwcjGFpoAmKOdc3qzlOgao5w5nJsU03A7d3MQ/edit?usp=sharing"
-new_sheet = client.open_by_url(new_sheet_url).sheet1
-
-# Prepare data for the new sheet
-new_data = {'Time Index': list(range(len(df), len(df) + num_forecasts))}
-
-
-Plotting the Results
-		This block plots the original and forecasted values for each parameter, arranging the plots in a grid format. It also updates the new_data dictionary with the forecasted values.
-CODE:-
-	plt.figure(figsize=(10, 100))  # Scale size: 1 unit = 1 cm
-for i, parameter in enumerate(parameters, 1):
-   		 # Prepare the data
-   		 X, y = prepare_data(df, parameter)
-   		 # Forecast using MLP
-   		 forecast = forecast_values_mlp(X, y, num_forecasts, window_size)
-   		 # Add forecasted data to the new data dictionary
-   		 new_data[f'Forecasted {parameter}'] = forecast
-   		 # Plot original values
-   		 plt.subplot(9, 2, 2 * i - 1)
-   		plt.plot(range(len(y)), y, label=f'Original {parameter}', color='blue')
-   		 plt.xlabel('Time Index')
-    		plt.legend()
-   		 # Plot forecasted values
-  		 plt.subplot(9, 2, 2 * i)
- plt.plot(range(len(y), len(y) + num_forecasts), forecast, label=f'Forecasted {parameter}', linestyle='--', color='red')
-    		plt.xlabel('Time Index')
-   		 plt.legend()
-plt.tight_layout()
-plt.show()
-
-Update New Google Sheet with Forecasted Data
-		This block converts the new_data dictionary to a pandas DataFrame and updates the new Google Sheet with the forecasted data.
-CODE:-
-	# Convert new_data dictionary to DataFrame
-new_df = pd.DataFrame(new_data)
-
-# Update the new Google Sheet with the forecasted data
-new_sheet.update([new_df.columns.values.tolist()] + new_df.values.tolist())
-
-
-
+Conclusion
+This project provides a scalable and robust solution for forecasting time series data using the Random Forest algorithm. The integration with Google Sheets makes it suitable for real-time data analysis and reporting, making it an excellent tool for environmental monitoring, IoT sensor data analysis, or any time series forecasting task.
